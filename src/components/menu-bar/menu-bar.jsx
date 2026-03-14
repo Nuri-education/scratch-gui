@@ -103,7 +103,6 @@ import prehistoricLogo from './prehistoric-logo.svg';
 import oldtimeyLogo from './oldtimey-logo.svg';
 
 import sharedMessages from '../../lib/shared-messages';
-import nuriBridge from '../../lib/nuri-bridge';
 
 import SeeInsideButton from './tw-see-inside.jsx';
 import {notScratchDesktop} from '../../lib/isScratchDesktop.js';
@@ -212,13 +211,6 @@ MenuItemLink.propTypes = {
 class MenuBar extends React.Component {
     constructor (props) {
         super(props);
-        this.state = {
-            nuriSaveStatus: null // null | 'saving' | 'saved' | 'submitting' | 'submitted'
-        };
-        this._nuriStatusTimeout = null;
-        // URL ?mode= 파라미터: 'practice' | 'assignment' | 'view' (기본값: assignment)
-        const urlParams = new URLSearchParams(window.location.search);
-        this.nuriMode = urlParams.get('mode') || 'assignment';
         bindAll(this, [
             'handleClickSeeInside',
             'handleClickNew',
@@ -235,9 +227,7 @@ class MenuBar extends React.Component {
             'handleKeyPress',
             'handleRestoreOption',
             'getSaveToComputerHandler',
-            'restoreOptionMessage',
-            'handleNuriSave',
-            'handleNuriSubmit'
+            'restoreOptionMessage'
         ]);
     }
     componentDidMount () {
@@ -245,7 +235,6 @@ class MenuBar extends React.Component {
     }
     componentWillUnmount () {
         document.removeEventListener('keydown', this.handleKeyPress);
-        if (this._nuriStatusTimeout) clearTimeout(this._nuriStatusTimeout);
     }
     handleClickNew () {
         // if the project is dirty, and user owns the project, we will autosave.
@@ -398,28 +387,6 @@ class MenuBar extends React.Component {
         }
         }
     }
-    async handleNuriSave () {
-        if (this._nuriStatusTimeout) clearTimeout(this._nuriStatusTimeout);
-        this.setState({nuriSaveStatus: 'saving'});
-        try {
-            await nuriBridge.saveProject();
-            this.setState({nuriSaveStatus: 'saved'});
-            this._nuriStatusTimeout = setTimeout(() => this.setState({nuriSaveStatus: null}), 2500);
-        } catch (e) {
-            this.setState({nuriSaveStatus: null});
-        }
-    }
-    async handleNuriSubmit () {
-        if (this._nuriStatusTimeout) clearTimeout(this._nuriStatusTimeout);
-        this.setState({nuriSaveStatus: 'submitting'});
-        try {
-            await nuriBridge.submitProject();
-            this.setState({nuriSaveStatus: 'submitted'});
-            this._nuriStatusTimeout = setTimeout(() => this.setState({nuriSaveStatus: null}), 2500);
-        } catch (e) {
-            this.setState({nuriSaveStatus: null});
-        }
-    }
     handleClickSeeInside () {
         this.props.onClickSeeInside();
     }
@@ -525,7 +492,7 @@ class MenuBar extends React.Component {
             >
                 <div className={styles.mainMenu}>
                     <div className={styles.fileGroup}>
-                        <span className={styles.nuriLogo}>누리 코딩</span>
+                        <span className={styles.nuriLogo}>스크래치 × 누리교육</span>
                         {this.props.errors.length > 0 && <div>
                             <MenuLabel
                                 open={this.props.errorsMenuOpen}
@@ -947,34 +914,7 @@ class MenuBar extends React.Component {
                     </div>
                 </div>
 
-                <div className={styles.accountInfoGroup}>
-                    {this.nuriMode !== 'view' && (
-                        <React.Fragment>
-                            {this.state.nuriSaveStatus === 'saved' && (
-                                <span className={styles.nuriSaveStatus}>저장됨 ✓</span>
-                            )}
-                            {this.state.nuriSaveStatus === 'submitted' && (
-                                <span className={styles.nuriSaveStatus}>제출됨 ✓</span>
-                            )}
-                            <button
-                                className={styles.nuriSaveButton}
-                                onClick={this.handleNuriSave}
-                                disabled={this.state.nuriSaveStatus === 'saving' || this.state.nuriSaveStatus === 'submitting'}
-                            >
-                                {this.state.nuriSaveStatus === 'saving' ? '저장 중...' : '저장'}
-                            </button>
-                            {this.nuriMode === 'assignment' && (
-                                <button
-                                    className={styles.nuriSubmitButton}
-                                    onClick={this.handleNuriSubmit}
-                                    disabled={this.state.nuriSaveStatus === 'saving' || this.state.nuriSaveStatus === 'submitting'}
-                                >
-                                    {this.state.nuriSaveStatus === 'submitting' ? '제출 중...' : '제출'}
-                                </button>
-                            )}
-                        </React.Fragment>
-                    )}
-                </div>
+                <div className={styles.accountInfoGroup} />
             </Box>
         );
 
