@@ -103,7 +103,7 @@ import prehistoricLogo from './prehistoric-logo.svg';
 import oldtimeyLogo from './oldtimey-logo.svg';
 
 import sharedMessages from '../../lib/shared-messages';
-import {triggerSave, triggerSubmit} from '../../lib/nuri-bridge';
+import nuriBridge from '../../lib/nuri-bridge';
 
 import SeeInsideButton from './tw-see-inside.jsx';
 import {notScratchDesktop} from '../../lib/isScratchDesktop.js';
@@ -216,6 +216,9 @@ class MenuBar extends React.Component {
             nuriSaveStatus: null // null | 'saving' | 'saved' | 'submitting' | 'submitted'
         };
         this._nuriStatusTimeout = null;
+        // URL ?mode= 파라미터: 'practice' | 'assignment' | 'view' (기본값: assignment)
+        const urlParams = new URLSearchParams(window.location.search);
+        this.nuriMode = urlParams.get('mode') || 'assignment';
         bindAll(this, [
             'handleClickSeeInside',
             'handleClickNew',
@@ -399,7 +402,7 @@ class MenuBar extends React.Component {
         if (this._nuriStatusTimeout) clearTimeout(this._nuriStatusTimeout);
         this.setState({nuriSaveStatus: 'saving'});
         try {
-            await triggerSave();
+            await nuriBridge.saveProject();
             this.setState({nuriSaveStatus: 'saved'});
             this._nuriStatusTimeout = setTimeout(() => this.setState({nuriSaveStatus: null}), 2500);
         } catch (e) {
@@ -410,7 +413,7 @@ class MenuBar extends React.Component {
         if (this._nuriStatusTimeout) clearTimeout(this._nuriStatusTimeout);
         this.setState({nuriSaveStatus: 'submitting'});
         try {
-            await triggerSubmit();
+            await nuriBridge.submitProject();
             this.setState({nuriSaveStatus: 'submitted'});
             this._nuriStatusTimeout = setTimeout(() => this.setState({nuriSaveStatus: null}), 2500);
         } catch (e) {
@@ -945,26 +948,32 @@ class MenuBar extends React.Component {
                 </div>
 
                 <div className={styles.accountInfoGroup}>
-                    {this.state.nuriSaveStatus === 'saved' && (
-                        <span className={styles.nuriSaveStatus}>저장됨 ✓</span>
+                    {this.nuriMode !== 'view' && (
+                        <React.Fragment>
+                            {this.state.nuriSaveStatus === 'saved' && (
+                                <span className={styles.nuriSaveStatus}>저장됨 ✓</span>
+                            )}
+                            {this.state.nuriSaveStatus === 'submitted' && (
+                                <span className={styles.nuriSaveStatus}>제출됨 ✓</span>
+                            )}
+                            <button
+                                className={styles.nuriSaveButton}
+                                onClick={this.handleNuriSave}
+                                disabled={this.state.nuriSaveStatus === 'saving' || this.state.nuriSaveStatus === 'submitting'}
+                            >
+                                {this.state.nuriSaveStatus === 'saving' ? '저장 중...' : '저장'}
+                            </button>
+                            {this.nuriMode === 'assignment' && (
+                                <button
+                                    className={styles.nuriSubmitButton}
+                                    onClick={this.handleNuriSubmit}
+                                    disabled={this.state.nuriSaveStatus === 'saving' || this.state.nuriSaveStatus === 'submitting'}
+                                >
+                                    {this.state.nuriSaveStatus === 'submitting' ? '제출 중...' : '제출'}
+                                </button>
+                            )}
+                        </React.Fragment>
                     )}
-                    {this.state.nuriSaveStatus === 'submitted' && (
-                        <span className={styles.nuriSaveStatus}>제출됨 ✓</span>
-                    )}
-                    <button
-                        className={styles.nuriSaveButton}
-                        onClick={this.handleNuriSave}
-                        disabled={this.state.nuriSaveStatus === 'saving' || this.state.nuriSaveStatus === 'submitting'}
-                    >
-                        {this.state.nuriSaveStatus === 'saving' ? '저장 중...' : '저장'}
-                    </button>
-                    <button
-                        className={styles.nuriSubmitButton}
-                        onClick={this.handleNuriSubmit}
-                        disabled={this.state.nuriSaveStatus === 'saving' || this.state.nuriSaveStatus === 'submitting'}
-                    >
-                        {this.state.nuriSaveStatus === 'submitting' ? '제출 중...' : '제출'}
-                    </button>
                 </div>
             </Box>
         );

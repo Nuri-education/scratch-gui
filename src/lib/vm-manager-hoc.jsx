@@ -6,7 +6,7 @@ import {connect} from 'react-redux';
 import VM from 'scratch-vm';
 import AudioEngine from 'scratch-audio';
 
-import {initNuriBridge, destroyNuriBridge} from './nuri-bridge';
+import nuriBridge from './nuri-bridge';
 
 import {setProjectUnchanged} from '../reducers/project-changed';
 import {
@@ -54,14 +54,14 @@ const vmManagerHOC = function (WrappedComponent) {
                 this.props.vm.initialized = true;
                 this.props.vm.setLocale(this.props.locale, this.props.messages);
                 // 누리 플랫폼 postMessage 브릿지 초기화
-                initNuriBridge();
+                nuriBridge.setVM(this.props.vm);
             }
             if (!this.props.isPlayerOnly && !this.props.isStarted) {
                 this.props.vm.start();
             }
         }
         componentWillUnmount () {
-            destroyNuriBridge();
+            nuriBridge.destroy();
         }
         componentDidUpdate (prevProps) {
             // if project is in loading state, AND fonts are loaded,
