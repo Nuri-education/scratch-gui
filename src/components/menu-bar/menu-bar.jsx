@@ -103,6 +103,7 @@ import prehistoricLogo from './prehistoric-logo.svg';
 import oldtimeyLogo from './oldtimey-logo.svg';
 
 import sharedMessages from '../../lib/shared-messages';
+import {triggerSave, triggerSubmit} from '../../lib/nuri-bridge';
 
 import SeeInsideButton from './tw-see-inside.jsx';
 import {notScratchDesktop} from '../../lib/isScratchDesktop.js';
@@ -211,6 +212,10 @@ MenuItemLink.propTypes = {
 class MenuBar extends React.Component {
     constructor (props) {
         super(props);
+        this.state = {
+            nuriSaveStatus: null // null | 'saving' | 'saved' | 'submitting' | 'submitted'
+        };
+        this._nuriStatusTimeout = null;
         bindAll(this, [
             'handleClickSeeInside',
             'handleClickNew',
@@ -227,7 +232,9 @@ class MenuBar extends React.Component {
             'handleKeyPress',
             'handleRestoreOption',
             'getSaveToComputerHandler',
-            'restoreOptionMessage'
+            'restoreOptionMessage',
+            'handleNuriSave',
+            'handleNuriSubmit'
         ]);
     }
     componentDidMount () {
@@ -235,6 +242,7 @@ class MenuBar extends React.Component {
     }
     componentWillUnmount () {
         document.removeEventListener('keydown', this.handleKeyPress);
+        if (this._nuriStatusTimeout) clearTimeout(this._nuriStatusTimeout);
     }
     handleClickNew () {
         // if the project is dirty, and user owns the project, we will autosave.
@@ -387,6 +395,28 @@ class MenuBar extends React.Component {
         }
         }
     }
+    async handleNuriSave () {
+        if (this._nuriStatusTimeout) clearTimeout(this._nuriStatusTimeout);
+        this.setState({nuriSaveStatus: 'saving'});
+        try {
+            await triggerSave();
+            this.setState({nuriSaveStatus: 'saved'});
+            this._nuriStatusTimeout = setTimeout(() => this.setState({nuriSaveStatus: null}), 2500);
+        } catch (e) {
+            this.setState({nuriSaveStatus: null});
+        }
+    }
+    async handleNuriSubmit () {
+        if (this._nuriStatusTimeout) clearTimeout(this._nuriStatusTimeout);
+        this.setState({nuriSaveStatus: 'submitting'});
+        try {
+            await triggerSubmit();
+            this.setState({nuriSaveStatus: 'submitted'});
+            this._nuriStatusTimeout = setTimeout(() => this.setState({nuriSaveStatus: null}), 2500);
+        } catch (e) {
+            this.setState({nuriSaveStatus: null});
+        }
+    }
     handleClickSeeInside () {
         this.props.onClickSeeInside();
     }
@@ -492,6 +522,7 @@ class MenuBar extends React.Component {
             >
                 <div className={styles.mainMenu}>
                     <div className={styles.fileGroup}>
+                        <span className={styles.nuriLogo}>누리 코딩</span>
                         {this.props.errors.length > 0 && <div>
                             <MenuLabel
                                 open={this.props.errorsMenuOpen}
@@ -629,68 +660,6 @@ class MenuBar extends React.Component {
                                             )}
                                         </MenuSection>
                                     )}
-                                    <MenuSection>
-                                        <MenuItem
-                                            onClick={this.props.onStartSelectingFileUpload}
-                                        >
-                                            {this.props.intl.formatMessage(sharedMessages.loadFromComputerTitle)}
-                                        </MenuItem>
-                                        <SB3Downloader
-                                            showSaveFilePicker={this.props.showSaveFilePicker}
-                                        >
-                                            {(_className, downloadProject, extended) => (
-                                                <React.Fragment>
-                                                    {extended.available && (
-                                                        <React.Fragment>
-                                                            {extended.name !== null && (
-                                                                // eslint-disable-next-line max-len
-                                                                <MenuItem onClick={this.getSaveToComputerHandler(extended.saveToLastFile)}>
-                                                                    <FormattedMessage
-                                                                        defaultMessage="Save to {file}"
-                                                                        // eslint-disable-next-line max-len
-                                                                        description="Menu bar item to save project to an existing file on the user's computer"
-                                                                        id="tw.saveTo"
-                                                                        values={{
-                                                                            file: extended.name
-                                                                        }}
-                                                                    />
-                                                                </MenuItem>
-                                                            )}
-                                                            {/* eslint-disable-next-line max-len */}
-                                                            <MenuItem onClick={this.getSaveToComputerHandler(extended.saveAsNew)}>
-                                                                <FormattedMessage
-                                                                    defaultMessage="Save as..."
-                                                                    // eslint-disable-next-line max-len
-                                                                    description="Menu bar item to select a new file to save the project as"
-                                                                    id="tw.saveAs"
-                                                                />
-                                                            </MenuItem>
-                                                        </React.Fragment>
-                                                    )}
-                                                    {notScratchDesktop() && (
-                                                        <MenuItem
-                                                            onClick={this.getSaveToComputerHandler(downloadProject)}
-                                                        >
-                                                            {extended.available ? (
-                                                                <FormattedMessage
-                                                                    defaultMessage="Save to separate file..."
-                                                                    // eslint-disable-next-line max-len
-                                                                    description="Download the project once, without being able to easily save to the same spot"
-                                                                    id="tw.oldDownload"
-                                                                />
-                                                            ) : (
-                                                                <FormattedMessage
-                                                                    defaultMessage="Save to your computer"
-                                                                    description="Menu bar item for downloading a project to your computer" // eslint-disable-line max-len
-                                                                    id="gui.menuBar.downloadToComputer"
-                                                                />
-                                                            )}
-                                                        </MenuItem>
-                                                    )}
-                                                </React.Fragment>
-                                            )}
-                                        </SB3Downloader>
-                                    </MenuSection>
                                     {this.props.onClickPackager && (
                                         <MenuSection>
                                             <MenuItem
@@ -705,15 +674,6 @@ class MenuBar extends React.Component {
                                             </MenuItem>
                                         </MenuSection>
                                     )}
-                                    <MenuSection>
-                                        <MenuItem onClick={this.handleClickRestorePoints}>
-                                            <FormattedMessage
-                                                defaultMessage="Restore points"
-                                                description="Menu bar item to manage restore points"
-                                                id="tw.menuBar.restorePoints"
-                                            />
-                                        </MenuItem>
-                                    </MenuSection>
                                 </MenuBarMenu>
                             </MenuLabel>
                         )}
@@ -800,35 +760,6 @@ class MenuBar extends React.Component {
                                             />
                                         </MenuItem>
                                     )}</ChangeUsername>
-                                    <CloudVariablesToggler>{(toggleCloudVariables, {enabled, canUseCloudVariables}) => (
-                                        <MenuItem
-                                            className={classNames({[styles.disabled]: !canUseCloudVariables})}
-                                            onClick={toggleCloudVariables}
-                                        >
-                                            {canUseCloudVariables ? (
-                                                enabled ? (
-                                                    <FormattedMessage
-                                                        defaultMessage="Disable Cloud Variables"
-                                                        description="Menu bar item for disabling cloud variables"
-                                                        id="tw.menuBar.cloudOff"
-                                                    />
-                                                ) : (
-                                                    <FormattedMessage
-                                                        defaultMessage="Enable Cloud Variables"
-                                                        description="Menu bar item for enabling cloud variables"
-                                                        id="tw.menuBar.cloudOn"
-                                                    />
-                                                )
-                                            ) : (
-                                                <FormattedMessage
-                                                    defaultMessage="Cloud Variables are not Available"
-                                                    // eslint-disable-next-line max-len
-                                                    description="Menu bar item for when cloud variables are not available"
-                                                    id="tw.menuBar.cloudUnavailable"
-                                                />
-                                            )}
-                                        </MenuItem>
-                                    )}</CloudVariablesToggler>
                                 </MenuSection>
                                 <MenuSection>
                                     <MenuItem onClick={this.props.onClickSettingsModal}>
@@ -1011,36 +942,30 @@ class MenuBar extends React.Component {
                             />
                         ) : []))}
                     </div>
-                    {/* tw: add a feedback button */}
-                    <div className={styles.menuBarItem}>
-                        <a
-                            className={styles.feedbackLink}
-                            href="https://scratch.mit.edu/users/GarboMuffin/#comments"
-                            rel="noopener noreferrer"
-                            target="_blank"
-                        >
-                            {/* todo: icon */}
-                            <Button className={styles.feedbackButton}>
-                                <FormattedMessage
-                                    defaultMessage="{APP_NAME} Feedback"
-                                    description="Button to give feedback in the menu bar"
-                                    id="tw.feedbackButton"
-                                    values={{
-                                        APP_NAME
-                                    }}
-                                />
-                            </Button>
-                        </a>
-                    </div>
                 </div>
 
                 <div className={styles.accountInfoGroup}>
-                    <TWSaveStatus
-                        showSaveFilePicker={this.props.showSaveFilePicker}
-                    />
+                    {this.state.nuriSaveStatus === 'saved' && (
+                        <span className={styles.nuriSaveStatus}>저장됨 ✓</span>
+                    )}
+                    {this.state.nuriSaveStatus === 'submitted' && (
+                        <span className={styles.nuriSaveStatus}>제출됨 ✓</span>
+                    )}
+                    <button
+                        className={styles.nuriSaveButton}
+                        onClick={this.handleNuriSave}
+                        disabled={this.state.nuriSaveStatus === 'saving' || this.state.nuriSaveStatus === 'submitting'}
+                    >
+                        {this.state.nuriSaveStatus === 'saving' ? '저장 중...' : '저장'}
+                    </button>
+                    <button
+                        className={styles.nuriSubmitButton}
+                        onClick={this.handleNuriSubmit}
+                        disabled={this.state.nuriSaveStatus === 'saving' || this.state.nuriSaveStatus === 'submitting'}
+                    >
+                        {this.state.nuriSaveStatus === 'submitting' ? '제출 중...' : '제출'}
+                    </button>
                 </div>
-
-                {aboutButton}
             </Box>
         );
 

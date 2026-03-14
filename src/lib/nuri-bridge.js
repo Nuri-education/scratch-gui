@@ -4,11 +4,13 @@
  *
  * ─── 수신 (부모 플랫폼 → 에디터) ────────────────────
  *   REQUEST_SAVE                      현재 프로젝트 .sb3 저장 요청
+ *   REQUEST_SUBMIT                    현재 프로젝트 .sb3 과제 제출 요청
  *   LOAD_PROJECT_URL  { url: string } URL에서 .sb3 템플릿 로드
  *
  * ─── 송신 (에디터 → 부모 플랫폼) ────────────────────
  *   SCRATCH_READY                     에디터 초기화 완료
- *   SCRATCH_SAVE     { payload: string } base64 인코딩된 .sb3
+ *   SCRATCH_SAVE     { payload: string } base64 인코딩된 .sb3 (자동저장)
+ *   SCRATCH_SUBMIT   { payload: string } base64 인코딩된 .sb3 (제출)
  *   SCRATCH_LOADED                    프로젝트 로드 완료
  *   SCRATCH_ERROR    { error: string } 오류 발생
  */
@@ -52,12 +54,29 @@ async function _handleMessage (event) {
     case 'REQUEST_SAVE':
         await _handleSave();
         break;
+    case 'REQUEST_SUBMIT':
+        await _handleSubmit();
+        break;
     case 'LOAD_PROJECT_URL':
         if (url) await _handleLoadFromUrl(url);
         break;
     default:
         break;
     }
+}
+
+/**
+ * 에디터 내부 [저장] 버튼에서 직접 호출
+ */
+export async function triggerSave () {
+    return _handleSave();
+}
+
+/**
+ * 에디터 내부 [제출] 버튼에서 직접 호출
+ */
+export async function triggerSubmit () {
+    return _handleSubmit();
 }
 
 async function _handleSave () {
@@ -70,6 +89,20 @@ async function _handleSave () {
         // saveProjectSb3() → Promise<Uint8Array>
         const sb3Data = await vm.saveProjectSb3();
         _postToParent({type: 'SCRATCH_SAVE', payload: _uint8ToBase64(sb3Data)});
+    } catch (err) {
+        _postToParent({type: 'SCRATCH_ERROR', error: String(err)});
+    }
+}
+
+async function _handleSubmit () {
+    const vm = window.vm;
+    if (!vm) {
+        _postToParent({type: 'SCRATCH_ERROR', error: 'VM not initialized'});
+        return;
+    }
+    try {
+        const sb3Data = await vm.saveProjectSb3();
+        _postToParent({type: 'SCRATCH_SUBMIT', payload: _uint8ToBase64(sb3Data)});
     } catch (err) {
         _postToParent({type: 'SCRATCH_ERROR', error: String(err)});
     }

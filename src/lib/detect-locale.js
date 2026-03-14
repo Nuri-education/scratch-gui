@@ -23,7 +23,7 @@ const detectLocale = supportedLocales => {
         }
     } catch (e) { /* ignore */ }
 
-    let locale = 'en'; // default
+    let locale = 'ko'; // default: Korean for Nuri platform
     let browserLocale = window.navigator.userLanguage || window.navigator.language;
     browserLocale = browserLocale.toLowerCase();
     // try to set locale from browserLocale
